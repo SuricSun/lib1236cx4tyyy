@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/lib1236cx4tyyy.css">
+    <title>Title</title>
+</head>
+<body>
+<button class="simple_button" style="font-size: 2em">awdawd</button>
+<div id="ctn" style="display: flex;">
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em">
+        <span>
+            A
+        </span>
+    </div>
+    <div style="border: 1px solid red;font-size: 2em;">
+        <span>
+            A
+        </span>
+    </div>
+</div>
+</body>
+<script src="/lib1236cx4tyyy.js"></script>
+<script>
+    document.querySelector(".simple_button").addEventListener("click", onclick);
+    let cnt = 0;
+
+    function onclick() {
+        show_global_message("提示", "操作成功" + cnt);
+        cnt++;
+    }
+
+    function div_oc(event) {
+        let ct = event.currentTarget;
+        __.sel(ct).do_animate({width: event.currentTarget.clientWidth + "px", opacity: "1"}, {
+            width: "0px",
+            opacity: "0"
+        }, "ease-in-out", 1000)
+            .then(() => {
+                ct.remove();
+            })
+    }
+
+    for (let i = 0; i < document.getElementById("ctn").children.length; i++) {
+        document.getElementById("ctn").children[i].addEventListener("click", div_oc);
+    }
+
+
+    function show_global_message(title, content) {
+        let toast = document.createElement("div");
+        toast.classList.add("toast");
+        toast.classList.add("success_toast");
+        toast.style.left = "95%";
+        toast.style.top = "5%";
+        toast.style.width = "20%";
+        toast.style.transform = "translate(-100%, 0)";
+        toast.style.opacity = "0";
+        let toast_title = document.createElement("div");
+        toast_title.classList.add("toast_title");
+        toast_title.style.width = "100%";
+        toast_title.style.height = "fit-content";
+        toast_title.innerText = title;
+        toast.appendChild(toast_title);
+        let toast_content = document.createElement("div");
+        toast_content.classList.add("toast_content");
+        toast_content.style.width = "100%";
+        toast_content.style.height = "fit-content";
+        toast_content.innerText = content;
+        toast.appendChild(toast_content);
+        document.body.appendChild(toast);
+        __.sel(toast).do_animate(null, {opacity: "1"}, "ease-in", 500)
+            .then((result) => {
+                return __.sel(toast).do_animate(null, {}, "ease-in", 1000)
+            })
+            .then((result) => {
+                return __.sel(toast).do_animate({}, {opacity: "0", top: "100%"}, "ease-in", 500);
+            })
+            .then((result) => {
+                toast.remove();
+            });
+    }
+</script>
+</html>

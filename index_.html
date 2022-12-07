@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>home</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            /*overflow: hidden;*/
+            border: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        .simple_button {
+            border: hidden;
+            border-radius: 0.5em;
+            padding: 0.2em;
+            color: white;
+            background: linear-gradient(45deg, cornflowerblue 0%, mediumpurple 50%, hotpink 100%);
+            transition: scale 0.2s;
+        }
+
+        .simple_button:hover {
+            scale: 105%;
+        }
+
+        .simple_button:active {
+            scale: 95%;
+        }
+    </style>
+</head>
+<body>
+<div id="canvas_container" style="position: fixed;width: 100%;height: 100%;z-index: -999">
+</div>
+<div style="width: 100%;height: 100%;display: flex;flex-direction: column;flex-wrap: wrap;justify-content: space-evenly;align-items: center">
+    <button id="fly_button" class="simple_button" style="width: 20%;height: 20%;font-size: 2em"
+            onclick="window.open('/static/Fucking_Exam_Release.exe')">
+        下载Fucking Exam
+    </button>
+</div>
+<script>
+    class SuriCanvas {
+
+        canvas;
+        ctx2d;
+        timerHandle;
+        ballArray;
+
+        constructor(htmlElem, width, height) {
+
+            this.canvas = document.createElement("canvas");
+            this.canvas.width = width;
+            this.canvas.height = height;
+            this.canvas.style.display = "absolute";
+            this.canvas.style.top = "0";
+            this.canvas.style.left = "0";
+            this.canvas.style.width = "100%";
+            this.canvas.style.height = "100%";
+            this.canvas.style.margin = "0";
+            this.canvas.style.border = "0";
+            this.canvas.style.padding = "0";
+            this.ctx2d = this.canvas.getContext("2d");
+            this.ctx2d.filter = 'blur(32px)';
+            htmlElem.append(this.canvas);
+        }
+
+        startAnimation(ballCnt) {
+            this.ballArray = new Array();
+            for (let i = 0; i < ballCnt; i++) {
+                this.ballArray.push(new Ball());
+            }
+            this.timerHandle = setInterval(this.draw, 16.6, this);
+        }
+
+        draw(thiz) {
+
+            //clear rect
+            thiz.ctx2d.fillStyle = 'rgb(61,0,175)';
+            thiz.ctx2d.fillRect(0, 0, thiz.canvas.width, thiz.canvas.height);
+            thiz.ballArray.forEach(
+                function (item, index) {
+                    item.move();
+                    thiz.ctx2d.beginPath();
+                    thiz.ctx2d.arc(item.x * thiz.canvas.width, item.y * thiz.canvas.height, item.radius * thiz.canvas.height, 0, Math.PI * 2, true);
+                    thiz.ctx2d.closePath();
+                    thiz.ctx2d.fillStyle = item.fillRGB;
+                    thiz.ctx2d.fill();
+                },
+                thiz
+            );
+        }
+    }
+
+    class Ball {
+
+        x;
+        y
+        radius;
+        directionX;
+        directionY;
+        fillRGB;
+        moveScale;
+
+        constructor() {
+            //生成的坐标在0-1之间
+            let rand = Math.random();
+            this.x = rand;
+            rand = Math.random();
+            this.y = rand;
+            rand = Math.random();
+            //半径在0.5-75之间
+            this.radius = 0.5 * (1.0 - rand) + 0.75 * rand;
+            //在rect中随意生成一个点，方向就是圆心到这个点
+            this.directionX = Math.random() - this.x;
+            this.directionY = Math.random() - this.y;
+            //最后normalize
+            let divideNum = Math.sqrt(Math.pow(this.directionX, 2) + Math.pow(this.directionY, 2));
+            this.directionX /= divideNum;
+            this.directionY /= divideNum;
+            //RGB
+            this.fillRGB = "rgb(" + Math.random() * 255 + "," + Math.random() * 255 + "," + Math.random() * 255 + ")";
+            //scale
+            rand = Math.random();
+            this.moveScale = 0.0005 * (1.0 - rand) + 0.001 * rand;
+        }
+
+        move() {
+
+            this.x += this.directionX * this.moveScale;
+            this.y += this.directionY * this.moveScale;
+            //检查边界
+            if (this.x < 0 || this.x > 1 || this.y < 0 || this.y > 1) {
+                //在rect中随意生成一个点，方向就是圆心到这个点
+                this.directionX = Math.random() - this.x;
+                this.directionY = Math.random() - this.y;
+                //最后normalize
+                let divideNum = Math.sqrt(Math.pow(this.directionX, 2) + Math.pow(this.directionY, 2));
+                this.directionX /= divideNum;
+                this.directionY /= divideNum;
+            }
+        }
+    }
+</script>
+<script>
+    let suriCanvas = new SuriCanvas(document.getElementById("canvas_container"), 800, 600);
+    suriCanvas.startAnimation(8);
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="lib1236cx4tyyy.js"></script>
+    <link rel="stylesheet" href="./lib1236cx4tyyy.css">
+</head>
+<body>
+<script>
+    let Card = `
+        <div class="<[data]% out.print("simple_button") %>" style="margin: 0.2em">
+            <[demo.fete]%
+                out.print("name: " + data.outer + "ext: " + ext.name);
+                out.render("Card_Inner", data, ext.child);
+            %>
+        </div>
+    `;
+
+    let Card_Inner = `
+        <div class="<[data]% out.print("simple_button") %>" style="margin: 0.2em">
+            <[a]%
+                out.print("name: " + data.inner + "ext: " + ext.name);
+                out.print("<br>");
+                out.print("##<[a]% out.print(\\"aha\\") ##%>");
+                data.inner_inner.forEach((elem, index)=>{
+                    out.render("Inner_Inner", elem, {real_ext: ext.child, index: index});
+                });
+            %>
+        </div>
+    `;
+
+    let Inner_Inner = `
+        <div class="<[data]% out.print("simple_button") %>" style="margin: 0.2em">
+            <[a]%
+                out.print("name(" + ext.index + "): " + data + "ext: " + ext.real_ext.name);
+            %>
+        </div>
+    `;
+
+    __.fete.parse_to_cache("Card", Card);
+    __.fete.parse_to_cache("Card_Inner", Card_Inner);
+    __.fete.parse_to_cache("Inner_Inner", Inner_Inner);
+
+    document.body.innerHTML = __.fete.render("Card", {
+        outer: "outer",
+        inner: "inner",
+        inner_inner: ["123", "1", "q213"]
+    }, {
+        name: "outer_ext",
+        child: {
+            name: "inner_ext",
+            child: {
+                name: "inner_inner_ext"
+            }
+        }
+    });
+</script>
+</body>
+</html>

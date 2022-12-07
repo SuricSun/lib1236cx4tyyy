@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>home</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            /*overflow: hidden;*/
+            border: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        .anim_opacity {
+            transition: opacity 0.5s;
+        }
+
+        .simple_button {
+            border: hidden;
+            border-radius: 0.5em;
+            padding: 0.2em;
+            color: white;
+            background: linear-gradient(45deg, cornflowerblue 0%, mediumpurple 50%, hotpink 100%);
+            transition: scale 0.2s;
+        }
+
+        .simple_button:hover {
+            scale: 105%;
+        }
+
+        .simple_button:active {
+            scale: 95%;
+        }
+    </style>
+</head>
+<body>
+<div id="drag_box"
+     style="width:  calc(100% - 4px);height: calc(50% - 4px);position: relative;border: 2px solid rebeccapurple">
+    <div class="anim_opacity"
+         style="font-size: 2em;background-color: rebeccapurple;width: 100%;height: 100%;display: flex;justify-content: center;align-items: center;opacity: 0">
+    </div>
+    <div style="position: absolute;left: 50%;top: 50%;transform: translate(-50%, -50%);font-size: 3em">
+        拖入文件
+    </div>
+</div>
+<div style="width: 100%;height: 50%;display: flex;flex-direction: column;flex-wrap: wrap;justify-content: space-evenly;align-items: center">
+    <div id="cur_file" style="font-size: 2em;width: fit-content">
+    </div>
+    <div id="progress" style="font-size: 2em;width: fit-content">
+    </div>
+    <button id="fly_button" class="simple_button" style="width: 20%;height: 20%;font-size: 2em">
+        上传
+    </button>
+    <button id="calc_button" class="simple_button" style="width: 20%;height: 20%;font-size: 2em">
+        计算
+    </button>
+    <button id="download_button" class="simple_button" style="width: 20%;height: 20%;font-size: 2em">
+        下载excel
+    </button>
+</div>
+<script>
+    let file_dropped = null;
+    let cur_file = document.getElementById("cur_file");
+    let progress = document.getElementById("progress");
+
+    document.getElementById("drag_box").addEventListener("dragover", on_drag_over);
+    document.getElementById("drag_box").addEventListener("dragleave", on_drag_leave);
+    document.getElementById("drag_box").addEventListener("drop", on_drop);
+
+    function on_drag_over(event) {
+        event.preventDefault();
+        event.currentTarget.children[0].style.opacity = "1";
+    }
+
+    function on_drag_leave(event) {
+        event.preventDefault();
+        event.currentTarget.children[0].style.opacity = "0";
+    }
+
+    function on_drop(event) {
+        event.preventDefault();
+        let fl = event.dataTransfer.files;
+        if (fl.length > 0) {
+            file_dropped = fl[0];
+            cur_file.innerText = "当前文件: " + file_dropped.name;
+        }
+        event.currentTarget.children[0].style.opacity = "0";
+    }
+
+    document.getElementById("fly_button").addEventListener("click", fly_haha);
+
+    function fly_haha() {
+        if (file_dropped == null) {
+            alert("先拖入文件");
+        }
+        let req = new XMLHttpRequest();
+        req.open("POST", "/uploadInfo");
+        req.upload.onprogress = function (event) {
+            if (event.lengthComputable === true) {
+                progress.innerText = (event.loaded / event.total * 100.0).toString() + "%";
+            }
+        }
+        req.onload = function (event) {
+            progress.innerText = "";
+            if (req.status !== 200) {
+                alert("上传成功但是服务器响应为\n" + req.status + " " + req.statusText);
+            }
+        }
+        req.onerror = function (event) {
+            progress.innerText = "";
+            alert("网络错误")
+        }
+        req.send(file_dropped);
+    }
+
+    document.getElementById("calc_button").addEventListener("click", calc);
+
+    function calc() {
+        let req = new XMLHttpRequest();
+        req.open("POST", "/getTotal");
+        req.onload = function (event) {
+            progress.innerText = "";
+            let json_obj = JSON.parse(req.response);
+            if (req.status === 200) {
+                if (json_obj.statusCode === 20000) {
+                    alert("计算成功\n" + req.status + " " + req.statusText);
+                }
+            }
+        }
+        req.onerror = function (event) {
+            progress.innerText = "";
+            alert("网络错误")
+        }
+        req.send();
+    }
+
+    document.getElementById("download_button").addEventListener("click", download);
+
+    function download() {
+        let req = new XMLHttpRequest();
+        req.open("POST", "/exportExcel");
+        req.onload = function (event) {
+            progress.innerText = "";
+        }
+        req.onerror = function (event) {
+            progress.innerText = "";
+            alert("网络错误")
+        }
+        req.send();
+    }
+</script>
+</body>
+</html>
