@@ -186,195 +186,201 @@
             return new Proxy(promise, handler);
         },
 
-        sel(selector) {
+        /**
+         * * 动画的属性必须已定义，不能为缺省值，比如opacity的初始值为''，若想动画，需要手动设置一个初始值
+         * <br>* 元素start_props要和end_props的单位一致，如opacity初始值为'0.5'，若指定"100%"为终止值，不会对其进行动画插值，因为单位不同
+         * <br>* 如果同时调用两次animate，且两次animate的css属性有重叠，那么在两个animate方法同时执行的时间区间内，重叠的属性由最后调用的animate方法决定最终的插值
+         * <br>* 考虑到效率原因，animate的html元素最好脱离标准文档流，或者animate的属性不会引起reflow（譬如opacity属性）
+         * @param html_elem 要动画的html对象
+         * @param start_props can be null
+         * @param end_props
+         * @param easing
+         * @param duration 动画时长，ms
+         */
+        animate(html_elem, start_props, end_props, easing, duration) {
 
-            if (typeof (selector) === "string") {
-                return new lib1236cx4tyyy.html_elem_wrapper().set_inner_elem(document.querySelector(selector));
-            } else {
-                return new lib1236cx4tyyy.html_elem_wrapper().set_inner_elem(selector);
+            if (start_props == null) {
+                start_props = {};
             }
+            if (end_props == null) {
+                end_props = {};
+            }
+            let calc_start_props = {};
+            let calc_end_props = {};
+            for (let prop in end_props) {
+                if (prop in html_elem.style) {
+                    let start_prop_to_parse = null;
+                    if (prop in start_props) {
+                        start_prop_to_parse = start_props[prop];
+                    } else {
+                        start_prop_to_parse = html_elem.style[prop];
+                    }
+                    let parsed_start_prop = this.parse_interpolatable_css_prop(start_prop_to_parse);
+                    if (parsed_start_prop !== null) {
+                        let parsed_end_prop = this.parse_interpolatable_css_prop(end_props[prop]);
+                        if (parsed_end_prop !== null) {
+                            if (parsed_start_prop.unit_str === parsed_end_prop.unit_str) {
+                                calc_start_props[prop] = parsed_start_prop;
+                                calc_end_props[prop] = parsed_end_prop;
+                            }
+                        }
+                    }
+                }
+            }
+            //default to linear
+            let cubic_bezier = [
+                0, 0, 1, 1
+            ];
+            if (typeof (easing) === "string") {
+                switch (easing) {
+                    case "linear":
+                        //default to linear, we do nothing here
+                        break;
+                    case "ease-in":
+                        cubic_bezier[0] = 0.5;
+                        cubic_bezier[1] = 0;
+                        break;
+                    case "ease-out":
+                        cubic_bezier[2] = 0.5;
+                        cubic_bezier[3] = 1;
+                        break;
+                    case "ease-in-out":
+                        cubic_bezier[0] = 0.5;
+                        cubic_bezier[1] = 0;
+                        cubic_bezier[2] = 0.5;
+                        cubic_bezier[3] = 1;
+                        break;
+                    case "super-ease-in":
+                        cubic_bezier[0] = 0.75;
+                        cubic_bezier[1] = 0;
+                        cubic_bezier[2] = 0.75;
+                        cubic_bezier[3] = 0;
+                        break;
+                    case "super-ease-out":
+                        cubic_bezier[0] = 0.25;
+                        cubic_bezier[1] = 1;
+                        cubic_bezier[2] = 0.25;
+                        cubic_bezier[3] = 1;
+                        break;
+                    case "super-ease-in-out":
+                        cubic_bezier[0] = 0.75;
+                        cubic_bezier[1] = 0;
+                        cubic_bezier[2] = 0.25;
+                        cubic_bezier[3] = 1;
+                        break;
+                }
+            } else if (easing instanceof Array) {
+                if (easing.length === 4) {
+                    cubic_bezier = easing;
+                }
+            }
+            //x限制于0-1
+            lib1236cx4tyyy.math.clamp(cubic_bezier[0], 0, 1);
+            lib1236cx4tyyy.math.clamp(cubic_bezier[2], 0, 1);
+            /*
+            采样32点
+            采样点太少动画会有明显的卡顿感，12个采样会卡，32个看不出来
+             */
+            let cubic_bezier_32_samples = [];
+            for (let i = 0; i < 32; i++) {
+                let t = i / 31;
+                let x = 3.0 * cubic_bezier[0] * t * Math.pow(1.0 - t, 2.0) +
+                    3.0 * cubic_bezier[2] * Math.pow(t, 2.0) * (1.0 - t) +
+                    Math.pow(t, 3.0);
+                let y = 3.0 * cubic_bezier[1] * t * Math.pow(1.0 - t, 2.0) +
+                    3.0 * cubic_bezier[3] * Math.pow(t, 2.0) * (1.0 - t) +
+                    Math.pow(t, 3.0);
+                cubic_bezier_32_samples.push({x, y});
+            }
+
+            let last_index = 1;
+
+            return lib1236cx4tyyy.start_fps_timer(
+                0,
+                "duration",
+                duration,
+                (t) => {
+                    //get bezier
+                    let v = undefined;
+                    //至少要两个采样才能正确插值
+                    for (; last_index < cubic_bezier_32_samples.length; last_index++) {
+                        if (t <= cubic_bezier_32_samples[last_index].x) {
+                            let new_t = (t - cubic_bezier_32_samples[last_index].x) / (cubic_bezier_32_samples[last_index - 1].x - cubic_bezier_32_samples[last_index].x);
+                            v = (1.0 - new_t) * cubic_bezier_32_samples[last_index].y + new_t * cubic_bezier_32_samples[last_index - 1].y;
+                            //v = lib1236cx4tyyy.clamp(v, 0, 1);
+                            break;
+                        }
+                    }
+                    if (v === undefined) {
+                        v = 1;
+                    }
+                    //计算值
+                    for (let prop in calc_start_props) {
+                        let real_val = (1.0 - v) * calc_start_props[prop].value + v * calc_end_props[prop].value;
+                        html_elem.style[prop] = real_val + calc_start_props[prop].unit_str;
+                    }
+                    //always returns true
+                    return true;
+                });
         },
 
-        html_elem_wrapper: class {
+        /**
+         * 如果parse成功，返回一个对象，否则返回null
+         * regex is ^([+-]?(?:\d+\.)?\d+(?:e[+-]?\d+)?)(.*)?$
+         * @param prop 一个字符串, "2px" "2%"
+         * @returns {null|Object}
+         */
+        parse_interpolatable_css_prop(prop) {
 
-            _inner_elem = null;
+            if (typeof prop === "string") {
+                //获取数字部分和(可选)单位部分
+                let arr_arr = [...prop.matchAll(/^([+-]?(?:\d+\.)?\d+(?:e[+-]?\d+)?)(.*)?$/g)];
+                if (arr_arr.length !== 1) {
+                    return null;
+                }
+                let _value = parseFloat(arr_arr[0][1]);
+                if (isNaN(_value)) {
+                    return null;
+                }
+                let _unit_str = "";
+                if (arr_arr[0][2] !== undefined) {
+                    _unit_str = arr_arr[0][2];
+                }
+                return {
+                    value: _value,
+                    unit_str: _unit_str
+                };
+            }
+            return null;
+        },
+
+        sel_ctx: {
+
+            _inner_elem: null,
 
             set_inner_elem(inner_elem) {
 
                 this._inner_elem = inner_elem;
                 return this;
-            };
+            },
 
             alert() {
 
                 alert(this._inner_elem.toString());
-            };
+            },
 
-            /**
-             * * 动画的属性必须已定义，不能为缺省值，比如opacity的初始值为''，若想动画，需要手动设置一个初始值
-             * <br>* 元素start_props要和end_props的单位一致，如opacity初始值为'0.5'，若指定"100%"为终止值，不会对其进行动画插值，因为单位不同
-             * <br>* 如果同时调用两次animate，且两次animate的css属性有重叠，那么在两个animate方法同时执行的时间区间内，重叠的属性由最后调用的animate方法决定最终的插值
-             * <br>* 考虑到效率原因，animate的html元素最好脱离标准文档流，或者animate的属性不会引起reflow（譬如opacity属性）
-             * @param start_props can be null
-             * @param end_props
-             * @param easing
-             * @param duration 动画时长，ms
-             */
             do_animate(start_props, end_props, easing, duration) {
 
-                if (start_props == null) {
-                    start_props = {};
-                }
-                if (end_props == null) {
-                    end_props = {};
-                }
-                let calc_start_props = {};
-                let calc_end_props = {};
-                for (let prop in end_props) {
-                    if (prop in this._inner_elem.style) {
-                        let start_prop_to_parse = null;
-                        if (prop in start_props) {
-                            start_prop_to_parse = start_props[prop];
-                        } else {
-                            start_prop_to_parse = this._inner_elem.style[prop];
-                        }
-                        let parsed_start_prop = this.parse_interpolatable_css_prop(start_prop_to_parse);
-                        if (parsed_start_prop !== null) {
-                            let parsed_end_prop = this.parse_interpolatable_css_prop(end_props[prop]);
-                            if (parsed_end_prop !== null) {
-                                if (parsed_start_prop.unit_str === parsed_end_prop.unit_str) {
-                                    calc_start_props[prop] = parsed_start_prop;
-                                    calc_end_props[prop] = parsed_end_prop;
-                                }
-                            }
-                        }
-                    }
-                }
-                //default to linear
-                let cubic_bezier = [
-                    0, 0, 1, 1
-                ];
-                if (typeof (easing) === "string") {
-                    switch (easing) {
-                        case "linear":
-                            //default to linear, we do nothing here
-                            break;
-                        case "ease-in":
-                            cubic_bezier[0] = 0.5;
-                            cubic_bezier[1] = 0;
-                            break;
-                        case "ease-out":
-                            cubic_bezier[2] = 0.5;
-                            cubic_bezier[3] = 1;
-                            break;
-                        case "ease-in-out":
-                            cubic_bezier[0] = 0.5;
-                            cubic_bezier[1] = 0;
-                            cubic_bezier[2] = 0.5;
-                            cubic_bezier[3] = 1;
-                            break;
-                        case "super-ease-in":
-                            cubic_bezier[0] = 0.75;
-                            cubic_bezier[1] = 0;
-                            cubic_bezier[2] = 0.75;
-                            cubic_bezier[3] = 0;
-                            break;
-                        case "super-ease-out":
-                            cubic_bezier[0] = 0.25;
-                            cubic_bezier[1] = 1;
-                            cubic_bezier[2] = 0.25;
-                            cubic_bezier[3] = 1;
-                            break;
-                        case "super-ease-in-out":
-                            cubic_bezier[0] = 0.75;
-                            cubic_bezier[1] = 0;
-                            cubic_bezier[2] = 0.25;
-                            cubic_bezier[3] = 1;
-                            break;
-                    }
-                } else if (easing instanceof Array) {
-                    if (easing.length === 4) {
-                        cubic_bezier = easing;
-                    }
-                }
-                //x限制于0-1
-                lib1236cx4tyyy.math.clamp(cubic_bezier[0], 0, 1);
-                lib1236cx4tyyy.math.clamp(cubic_bezier[2], 0, 1);
-                /*
-                采样32点
-                采样点太少动画会有明显的卡顿感，12个采样会卡，32个看不出来
-                 */
-                let cubic_bezier_32_samples = [];
-                for (let i = 0; i < 32; i++) {
-                    let t = i / 31;
-                    let x = 3.0 * cubic_bezier[0] * t * Math.pow(1.0 - t, 2.0) +
-                        3.0 * cubic_bezier[2] * Math.pow(t, 2.0) * (1.0 - t) +
-                        Math.pow(t, 3.0);
-                    let y = 3.0 * cubic_bezier[1] * t * Math.pow(1.0 - t, 2.0) +
-                        3.0 * cubic_bezier[3] * Math.pow(t, 2.0) * (1.0 - t) +
-                        Math.pow(t, 3.0);
-                    cubic_bezier_32_samples.push({x, y});
-                }
+                return lib1236cx4tyyy.animate(this._inner_elem, start_props, end_props, easing, duration);
+            }
+        },
 
-                let last_index = 1;
+        sel(selector) {
 
-                return lib1236cx4tyyy.start_fps_timer(
-                    0,
-                    "duration",
-                    duration,
-                    (t) => {
-                        //get bezier
-                        let v = undefined;
-                        //至少要两个采样才能正确插值
-                        for (; last_index < cubic_bezier_32_samples.length; last_index++) {
-                            if (t <= cubic_bezier_32_samples[last_index].x) {
-                                let new_t = (t - cubic_bezier_32_samples[last_index].x) / (cubic_bezier_32_samples[last_index - 1].x - cubic_bezier_32_samples[last_index].x);
-                                v = (1.0 - new_t) * cubic_bezier_32_samples[last_index].y + new_t * cubic_bezier_32_samples[last_index - 1].y;
-                                //v = lib1236cx4tyyy.clamp(v, 0, 1);
-                                break;
-                            }
-                        }
-                        if (v === undefined) {
-                            v = 1;
-                        }
-                        //计算值
-                        for (let prop in calc_start_props) {
-                            let real_val = (1.0 - v) * calc_start_props[prop].value + v * calc_end_props[prop].value;
-                            this._inner_elem.style[prop] = real_val + calc_start_props[prop].unit_str;
-                        }
-                        //always returns true
-                        return true;
-                    });
-            };
-
-            /**
-             * 如果parse成功，返回一个对象，否则返回null
-             * regex is ^([+-]?(?:\d+\.)?\d+(?:e[+-]?\d+)?)(.*)?$
-             * @param prop 一个字符串, "2px" "2%"
-             * @returns {null|Object}
-             */
-            parse_interpolatable_css_prop(prop) {
-
-                if (typeof prop === "string") {
-                    //获取数字部分和(可选)单位部分
-                    let arr_arr = [...prop.matchAll(/^([+-]?(?:\d+\.)?\d+(?:e[+-]?\d+)?)(.*)?$/g)];
-                    if (arr_arr.length !== 1) {
-                        return null;
-                    }
-                    let _value = parseFloat(arr_arr[0][1]);
-                    if (isNaN(_value)) {
-                        return null;
-                    }
-                    let _unit_str = "";
-                    if (arr_arr[0][2] !== undefined) {
-                        _unit_str = arr_arr[0][2];
-                    }
-                    return {
-                        value: _value,
-                        unit_str: _unit_str
-                    };
-                }
-                return null;
+            if (typeof (selector) === "string") {
+                return this.sel_ctx.set_inner_elem(document.querySelector(selector));
+            } else if (selector instanceof HTMLElement) {
+                return this.sel_ctx.set_inner_elem(selector);
             }
         },
 
