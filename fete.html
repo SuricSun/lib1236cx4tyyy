@@ -8,53 +8,91 @@
 </head>
 <body>
 <script>
+    let template_arr = `
+    sb cnm<a>awdawd</a>a>
+            <[template_arr]%
+                \${data.elem}
+            %>
+    `;
     let Card = `
-        <div class="<[data]% out.print("simple_button") %>" style="margin: 0.2em">
-            <[demo.fete]%
-                out.print("name: " + data.outer + "ext: " + ext.name);
-                out.render("Card_Inner", data, ext.child);
+awdawdawd
+        <div class="<[str]% out.print("simple_button") %>" style="margin: 0.2em">
+            <[template]%
+                \${data.outer}
+            %>
+            <[str]%
+                out.print(out.render("template_arr", [{elem: 2123412},{elem: 123}], {}));
+            %>
+            <[dom]%
+                let e = out.render("Card_Inner", data, ext.child);
+                e.querySelector("div").id = "0";
+                e.querySelector("div").addEventListener("click", ()=>{alert("e")});
+                out.e_print(e);
             %>
         </div>
     `;
 
     let Card_Inner = `
-        <div class="<[data]% out.print("simple_button") %>" style="margin: 0.2em">
-            <[a]%
-                out.print("name: " + data.inner + "ext: " + ext.name);
-                out.print("<br>");
-                out.print("##<[a]% out.print(\\"aha\\") ##%>");
+sba
+        <div class="<[str]% out.print("simple_button") %>" style="margin: 0.2em">
+            <[template]%
+                \${data.inner}
+            %>
+            <[dom]%
+                //out.print(data.inner + "    (" + ext.name + ")");
+                //out.print("<br>");
+                //out.print("##<[a]% out.print(\\"aha\\") ##%>");
                 data.inner_inner.forEach((elem, index)=>{
-                    out.render("Inner_Inner", elem, {real_ext: ext.child, index: index});
+                    let e = out.render("Inner_Inner", elem, {real_ext: ext.child, index: index});
+                    console.warn(e.children[0].addEventListener)
+                    e.children[0].addEventListener("click", (evt)=>{alert("eaaaaa");evt.stopPropagation()});
+                    out.e_print(e);
                 });
             %>
         </div>
     `;
 
     let Inner_Inner = `
-        <div class="<[data]% out.print("simple_button") %>" style="margin: 0.2em">
-            <[a]%
-                out.print("name(" + ext.index + "): " + data + "ext: " + ext.real_ext.name);
+awd
+        <div class="<[str]%out.print("simple_button")%>" style="margin: 0.2em">
+            <[str]%
+                out.print("特点" + ext.index + ": " + data + "    (" + ext.real_ext.name + ")");
             %>
         </div>
+        <div>
+        awd
+</div>
+sha bi ba
     `;
 
+    function on_click(evt) {
+        alert(evt.currentTarget.innerText)
+    }
+
+    __.fete.parse_to_cache("template_arr", template_arr);
     __.fete.parse_to_cache("Card", Card);
     __.fete.parse_to_cache("Card_Inner", Card_Inner);
     __.fete.parse_to_cache("Inner_Inner", Inner_Inner);
 
-    document.body.innerHTML = __.fete.render("Card", {
-        outer: "outer",
-        inner: "inner",
-        inner_inner: ["123", "1", "q213"]
-    }, {
-        name: "outer_ext",
-        child: {
-            name: "inner_ext",
-            child: {
-                name: "inner_inner_ext"
+    for (let i = 0; i < 100; i++) {
+        document.body.appendChild(__.fete.inner_render(
+            "Card",
+            {
+                outer: "Fete",
+                inner: "By Suancai",
+                inner_inner: ["复古", "科技", "狠活"]
+            },
+            {
+                name: ":]",
+                child: {
+                    name: ":)",
+                    child: {
+                        name: ":D"
+                    }
+                }
             }
-        }
-    });
+        ));
+    }
 </script>
 </body>
 </html>

@@ -30,6 +30,27 @@
             },
         },
 
+        utility: {
+
+            /**
+             * 根据prop_str访问obj的属性，例如prop_str为"a.b.c"，最后就访问obj.a.b.c
+             * @param obj
+             * @param prop_str
+             */
+            access_prop: function (obj, prop_str) {
+
+                let props = prop_str.split(".");
+                let cur_obj = obj;
+                for (let i = 0; i < props.length; i++) {
+                    cur_obj = cur_obj[props[i]];
+                    if (cur_obj === undefined) {
+                        return undefined;
+                    }
+                }
+                return cur_obj;
+            }
+        },
+
         /**
          * 当类型为duration时，如果显示了alert窗口，计时器停止运行，但是时间一直在增加，导致duration计时器运行次数减少
          * @param trigger_interval 触发回调函数的时间间隔
@@ -86,7 +107,6 @@
                                 break;
                             default:
                                 throw new Error("错误的timer类型");
-                                break;
                         }
                     }
                     return this;
@@ -195,7 +215,6 @@
              * <br>* 元素start_props要和end_props的单位一致，如opacity初始值为'0.5'，若指定"100%"为终止值，不会对其进行动画插值，因为单位不同
              * <br>* 如果同时调用两次animate，且两次animate的css属性有重叠，那么在两个animate方法同时执行的时间区间内，重叠的属性由最后调用的animate方法决定最终的插值
              * <br>* 考虑到效率原因，animate的html元素最好脱离标准文档流，或者animate的属性不会引起reflow（譬如opacity属性）
-             * @param html_elem
              * @param start_props can be null
              * @param end_props
              * @param easing
@@ -296,30 +315,27 @@
                         Math.pow(t, 3.0);
                     cubic_bezier_32_samples.push({x, y});
                 }
+
+                let last_index = 1;
+
                 return lib1236cx4tyyy.start_fps_timer(
                     0,
                     "duration",
                     duration,
                     (t) => {
                         //get bezier
-                        let v = -1;
+                        let v = undefined;
                         //至少要两个采样才能正确插值
-                        for (let i = 1; i < cubic_bezier_32_samples.length; i++) {
-                            if (t <= cubic_bezier_32_samples[i].x) {
-                                let new_t = (t - cubic_bezier_32_samples[i].x) / (cubic_bezier_32_samples[i - 1].x - cubic_bezier_32_samples[i].x);
-                                v = (1.0 - new_t) * cubic_bezier_32_samples[i].y + new_t * cubic_bezier_32_samples[i - 1].y;
+                        for (; last_index < cubic_bezier_32_samples.length; last_index++) {
+                            if (t <= cubic_bezier_32_samples[last_index].x) {
+                                let new_t = (t - cubic_bezier_32_samples[last_index].x) / (cubic_bezier_32_samples[last_index - 1].x - cubic_bezier_32_samples[last_index].x);
+                                v = (1.0 - new_t) * cubic_bezier_32_samples[last_index].y + new_t * cubic_bezier_32_samples[last_index - 1].y;
                                 //v = lib1236cx4tyyy.clamp(v, 0, 1);
                                 break;
                             }
                         }
-                        if (v === -1) {
-                            if (t < 0) {
-                                v = 0;
-                            } else if (t > 1) {
-                                v = 1
-                            } else {
-                                v = t;
-                            }
+                        if (v === undefined) {
+                            v = 1;
                         }
                         //计算值
                         for (let prop in calc_start_props) {
@@ -365,6 +381,8 @@
         fete: {
 
             cached_template: new Map(),
+            dom_frag: document.createDocumentFragment(),
+            allowed_tag_names: ["str", "dom", "template", "template_arr"],
 
             parse_to_cache: function (template_str_name, template_str) {
 
@@ -374,59 +392,217 @@
                 }
             },
 
-            render: function (template_name, instantiate_data, custom_data) {
+            render_as_string: function (template_name, instantiate_data, custom_data) {
+
+                //WARN: inner__render 返回 dom frag
+                let ret = this.inner_render(template_name, instantiate_data, custom_data);
+                //frag to string
+                let final_str = "";
+                ret.childNodes.forEach((elem) => {
+
+                    if (elem instanceof HTMLElement) {
+                        final_str += elem.outerHTML;
+                    } else if (elem instanceof Text) {
+                        final_str += elem.wholeText;
+                    } else {
+                        final_str += "[暂不支持渲染成字符串的节点类型: " + elem.constructor.name + "]";
+                    }
+                });
+                return final_str;
+            },
+
+            render_as_dom_frag: function (template_name, instantiate_data, custom_data) {
+
+                return this.inner_render(template_name, instantiate_data, custom_data);
+            },
+
+            /**
+             * returns an element
+             * @param template_name
+             * @param instantiate_data
+             * @param custom_data
+             * @returns {DocumentFragment}
+             */
+            inner_render: function (template_name, instantiate_data, custom_data) {
 
                 let template = this.cached_template.get(template_name);
                 if (template === undefined) {
-                    return "[TEMPLATE CANNOT BE FOUND AT CACHE]";
+                    let temp_frag = document.createDocumentFragment();
+                    temp_frag.appendChild(document.createElement("span"));
+                    temp_frag.children[0].innerText = "[无法在缓存中找到模板名]";
+                    return temp_frag;
                 }
 
                 let final_str = "";
-                let out = {
 
-                    out_data: {
+                template.forEach((elem) => {
 
-                        out_str: ""
-                    },
+                    switch (elem.fete_tag_type) {
+                        case "template":
+                            final_str += this.deal_with_template(elem, instantiate_data, custom_data);
+                            break;
+                        case "template_arr":
+                            final_str += this.deal_with_template_arr(elem, instantiate_data, custom_data);
+                            break;
+                        case "str":
+                            final_str += this.deal_with_string(elem, instantiate_data, custom_data);
+                            break;
+                        case "dom":
+                            final_str += "<script id = \"fete_enabled\">" + elem.str + "</script>";
+                            break;
+                        case "not_fete_tag":
+                            //单纯的纯文本不用处理
+                            final_str += elem.str;
+                            break;
+                        default:
+                            throw new Error("不可能发生: 一个解析后的模板块的类型不为其中之一: " + this.allowed_tag_names.toString());
+                    }
+                });
+
+                //对于最后的final_str
+                //实例化为HTMLElement
+                let dom_frag = document.createDocumentFragment();
+                dom_frag.appendChild(document.createElement("div"));
+
+                //children有innerHTML然而childNodes没有
+                dom_frag.children[0].innerHTML = final_str;
+
+                //找到script标签且id为fete_enabled
+                let node_list = dom_frag.querySelectorAll("script#fete_enabled");
+                node_list.forEach((elem) => {
+
+                    //依次渲染每个elem，最后添加到上面
+                    let out_frag = this.deal_with_dom({js_func: new Function("out", "data", "ext", elem.innerHTML)}, instantiate_data, custom_data);
+                    elem.replaceWith(out_frag);
+                });
+
+                dom_frag.children[0].replaceWith(...dom_frag.children[0].childNodes)
+
+                return dom_frag;
+            },
+
+            _deal_with_template_Do_replace: function (template_str, regex_data, inner_instantiate_data, inner_custom_data) {
+
+                let final_str = "";
+                let last_processing_pos = 0;
+
+                regex_data.forEach((elem) => {
+
+                    final_str += template_str.substring(last_processing_pos, elem.index);
+                    final_str += lib1236cx4tyyy.utility.access_prop({
+                        data: inner_instantiate_data,
+                        ext: inner_custom_data
+                    }, elem.access_prop_str);
+                    last_processing_pos = elem.index + elem.len;
+                });
+                final_str += template_str.substring(last_processing_pos, template_str.length);
+                return final_str;
+            },
+
+            deal_with_template_arr: function (elem, instantiate_data, custom_data) {
+
+                let out_regex_capture_arr = [];
+
+                let regex = new RegExp("\\${((?:[\\w_$]+\\.)*[\\w_$]+)}", "g");
+
+                [...elem.str.matchAll(regex)].forEach((elem) => {
+
+                    //对elem[1]做替换然后输出
+                    out_regex_capture_arr.push({
+                        index: elem.index,
+                        len: elem[0].length,
+                        access_prop_str: elem[1]
+                    });
+                });
+
+                let output_str = "";
+
+                if (instantiate_data instanceof Array) {
+                    for (let i = 0; i < instantiate_data.length; i++) {
+                        output_str += this._deal_with_template_Do_replace(elem.str, out_regex_capture_arr, instantiate_data[i], custom_data);
+                    }
+                    return output_str;
+                } else {
+                    return "[传入的实例数据不是Array类型，无法模板实例化]"
+                }
+            },
+
+            deal_with_template: function (elem, instantiate_data, custom_data) {
+
+                let out_regex_capture_arr = [];
+
+                let regex = new RegExp("\\${((?:[\\w_$]+\\.)*[\\w_$]+)}", "g");
+
+                [...elem.str.matchAll(regex)].forEach((elem) => {
+
+                    //对elem[1]做替换然后输出
+                    out_regex_capture_arr.push({
+                        index: elem.index,
+                        len: elem[0].length,
+                        access_prop_str: elem[1]
+                    });
+                });
+
+                return this._deal_with_template_Do_replace(elem.str, out_regex_capture_arr, instantiate_data, custom_data);
+            },
+
+            deal_with_string: function (elem, instantiate_data, custom_data) {
+
+                let out_per_js_bracket = {
+
+                    out_str: "",
 
                     print: function (str) {
 
-                        this.out_data.out_str += str;
+                        if (typeof str === "string") {
+                            this.out_str += str;
+                        } else {
+                            this.out_str += "[WARNING]尝试使用out.print(...)打印一个非字符串类型的对象, 打印的对象类型为: " + str.constructor.name
+                                + ", toString()为: " + str.toString();
+                        }
                     },
 
                     render: function (template_name, instantiate_data, custom_data) {
 
-                        this.print(lib1236cx4tyyy.fete.render(template_name, instantiate_data, custom_data));
-                    },
-
-                    reset_state: function () {
-
-                        this.out_data.out_str = "";
+                        return lib1236cx4tyyy.fete.render_as_string(template_name, instantiate_data, custom_data);
                     }
                 };
 
-                template.forEach((elem) => {
+                elem.js_func(out_per_js_bracket, instantiate_data, custom_data);
 
-                    switch (elem.type) {
-                        case 0:
-                            final_str += elem.str;
-                            break;
-                        case 1:
-                            elem.js_func(out, instantiate_data, custom_data);
-                            final_str += out.out_data.out_str;
-                            out.reset_state();
-                            break;
-                        default:
-                            throw new Error("不可能发生: 一个解析后的模板块的类型不为0或1");
+                return out_per_js_bracket.out_str;
+            },
+
+            deal_with_dom: function (elem, instantiate_data, custom_data) {
+
+                let out_per_js_bracket = {
+
+                    out_dom_frag: document.createDocumentFragment(),
+
+                    e_print(html_element) {
+
+                        if (html_element instanceof HTMLElement || html_element instanceof DocumentFragment) {
+                            this.out_dom_frag.appendChild(html_element);
+                        } else {
+                            this.out_dom_frag.append("[WARNING]尝试使用out.e_print(...)打印一个非HTMLElement类型的对象, 打印的对象类型为: " + html_element.constructor.name
+                                + ", toString()为: " + html_element.toString());
+                        }
+                    },
+
+                    render: function (template_name, instantiate_data, custom_data) {
+
+                        return lib1236cx4tyyy.fete.render_as_dom_frag(template_name, instantiate_data, custom_data);
                     }
-                });
+                };
 
-                return final_str;
+                elem.js_func(out_per_js_bracket, instantiate_data, custom_data);
+
+                return out_per_js_bracket.out_dom_frag;
             },
 
             parse: function (template_str) {
 
-                let left = new RegExp("<\\[([\\d\\w$]+(?:\\.[\\d\\w$]+)?)+\\]%", "g");
+                let left = new RegExp("<\\[((?:[\\w_$]+\\.)*[\\w_$]+)]%", "g");
                 let right = new RegExp("%>", "g");
 
                 let left_parsed = [];
@@ -439,8 +615,12 @@
                             return;
                         }
                     }
+                    if (this.allowed_tag_names.indexOf(elem[1]) === -1) {
+                        throw new Error("语法错误, 不支持的tagName: " + elem[1] + ", 请使用" + this.allowed_tag_names.toString());
+                    }
                     left_parsed.push({
-                        type: 0,//for left
+                        type_Left_or_right_tag: 0,//for left
+                        tag_name: elem[1],
                         index: elem.index,
                         len: elem[0].length,
                         str: elem[0],
@@ -458,7 +638,8 @@
                         }
                     }
                     right_parsed.push({
-                        type: 1,//for right
+                        type_Left_or_right_tag: 1,//for right
+                        tag_name: elem[1],
                         index: elem.index,
                         len: elem[0].length,
                         str: elem[0],
@@ -502,12 +683,12 @@
                 let fuck_the_name = 0;
                 final_arr.forEach((elem) => {
 
-                    if (elem.type === 0) {
+                    if (elem.type_Left_or_right_tag === 0) {
                         fuck_the_name++;
-                    } else if (elem.type === 1) {
+                    } else if (elem.type_Left_or_right_tag === 1) {
                         fuck_the_name--;
                     } else {
-                        throw new Error("不可能发生: 一个括号的类型不为0或1");
+                        throw new Error("不可能发生: 一个括号的类型不为0或1: " + elem.str);
                     }
                     if (fuck_the_name < 0 || fuck_the_name > 1) {
                         //立即得出结论
@@ -531,15 +712,15 @@
                     let end = final_arr[i + 1].index + final_arr[i + 1].len;
                     if (start > last_char_pos) {
                         ret_arr.push({
-                            type: 0,
+                            fete_tag_type: "not_fete_tag",
                             str: template_str.substring(last_char_pos, start)
                         });
                     }
                     let _js_code = template_str.substring(final_arr[i].index + final_arr[i].len, final_arr[i + 1].index);
                     ret_arr.push({
-                        type: 1,
+                        fete_tag_type: final_arr[i].tag_name,
                         str: _js_code,
-                        brackets_data: final_arr[1],
+                        js_tag_data: final_arr[i],
                         js_func: null
                     });
 
@@ -548,7 +729,7 @@
 
                 if (last_char_pos < template_str.length) {
                     ret_arr.push({
-                        type: 0,
+                        fete_tag_type: "not_fete_tag",
                         str: template_str.substring(last_char_pos, template_str.length)
                     });
                 }
@@ -557,7 +738,7 @@
 
                     //把所有elem.str里面的#转义符抵消掉再生成函数
                     elem.str = elem.str.replaceAll("##", "");
-                    if (elem.type === 1) {
+                    if (elem.fete_tag_type === "str" || elem.fete_tag_type === "dom") {
                         elem.js_func = new Function("out", "data", "ext", elem.str);
                     }
                 });

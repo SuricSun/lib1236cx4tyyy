@@ -8,11 +8,11 @@
 }
 
 .simple_button:hover {
-    scale: 105%;
+    scale: 101%;
 }
 
 .simple_button:active {
-    scale: 95%;
+    scale: 99%;
 }
 
 .toast {
