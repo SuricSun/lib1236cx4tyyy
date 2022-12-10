@@ -156,7 +156,7 @@
     let cnt = 0;
 
     function onclick() {
-        show_global_message("提示", "操作成功" + cnt);
+        show_global_message("提示", "操作成功<br>操作成功<br>操作成功<br>操作成功<br>操作成功<br>操作成功<br>" + cnt);
         cnt++;
     }
 
@@ -185,6 +185,7 @@
         toast.style.width = "20%";
         toast.style.transform = "translate(-100%, 0)";
         toast.style.opacity = "0";
+        toast.style.overflow = "hidden";
         let toast_title = document.createElement("div");
         toast_title.classList.add("toast_title");
         toast_title.style.width = "100%";
@@ -195,15 +196,24 @@
         toast_content.classList.add("toast_content");
         toast_content.style.width = "100%";
         toast_content.style.height = "fit-content";
-        toast_content.innerText = content;
+        toast_content.innerHTML = content;
         toast.appendChild(toast_content);
         document.body.appendChild(toast);
-        __.sel(toast).do_animate(null, {opacity: "1"}, "ease-in", 500)
+        __.sel(toast).do_animate({width: "0%", height: "0%"}, {
+            opacity: "1",
+            width: "25%",
+            height: "10%"
+        }, "ease-in-out", 500)
             .then((result) => {
-                return __.sel(toast).do_animate(null, {}, "ease-in", 1000)
+                toast.style.height = toast.clientHeight + "px";
+                return __.sel(toast).do_animate(null, {height: toast.scrollHeight + "px"}, "ease-in", 500)
             })
             .then((result) => {
-                return __.sel(toast).do_animate({}, {opacity: "0", top: "100%"}, "ease-in", 500);
+                return __.start_fps_timer(0, "duration", 2000, () => {
+                });
+            })
+            .then((result) => {
+                return __.sel(toast).do_animate({}, {opacity: "0", top: "100%", width: "0%"}, "ease-in", 500);
             })
             .then((result) => {
                 toast.remove();

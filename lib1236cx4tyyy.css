@@ -24,7 +24,7 @@
     height: fit-content;
     border-radius: 5px;
     background: linear-gradient(45deg, cornflowerblue 0%, mediumpurple 50%, hotpink 100%);
-    box-shadow: 0 0 2em 0.5em gray;
+    box-shadow: 0 0 1em 0.05em gray;
 }
 
 .toast_title {
